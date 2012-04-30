@@ -1,0 +1,15 @@
+{
+  "author": "",
+  "name": "nlink",
+  "version": "0.0.0",
+  "dependencies": {
+    "optimist": ">=0.3.1",
+    "uglify-js": ">=1.2.6",
+    "hogan.js": ">=2.0.0"
+  },
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
