@@ -1,1 +1,4 @@
 _*
+*.coffee
+.gitignore
+src

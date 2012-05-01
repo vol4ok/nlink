@@ -1,14 +1,28 @@
 {
-  "author": "",
+  "author": "vol4ok",
   "name": "nlink",
-  "version": "0.0.0",
+  "description": "JavaScript Linker",
+  "version": "0.0.1",
+  "bin": {
+    "nlink": "./bin/nlink"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vol4ok/nlink.git"
+  },
   "dependencies": {
+    "coffee-script": ">=1.2.0",
     "optimist": ">=0.3.1",
-    "uglify-js": ">=1.2.6",
+    "uglify-js": "~1.2.6",
+    "fs.walker": ">=0.0.4",
+    "colors": ">=0.6.0"
+  },
+  "devDependencies": {
+    
+  },
+  "optionalDependencies": {
     "hogan.js": ">=2.0.0"
   },
-  "devDependencies": {},
-  "optionalDependencies": {},
   "engines": {
     "node": "*"
   }

@@ -8,13 +8,13 @@ jsp = require("uglify-js").parser
 pro = require("uglify-js").uglify
 
 EMPTY_NODE = ['name',''] #['block']
+SUB_EXT = 'lib'
 
 PRECOMPILE = 'PRECOMPILE'
-MIXIN = 'MIXIN'
+EMBED = 'EMBED'
 TEMPLATE = 'PRECOMPILE_TEMPLATE'
 REQUIRE = 'require'
 MODULE = 'module'
-SUB_EXT = 'lib'
 DEFINE = 'DEFINE'
 IFDEF = 'IFDEF'
 IFNDEF = 'IFNDEF'
@@ -83,28 +83,27 @@ runMacros = (node, expr, args, options) ->
      return jsp.parse(str)
    return
   
-mixin = (node, expr, args, options) ->
-  if expr[1] == MIXIN
+embed = (node, expr, args, options) ->
+  if expr[1] == EMBED
     path = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
-    code = readFileFromDirSync(path, options.outdir, 'utf-8')
+    embedDir = options.outdir ? dirname(options.infile)
+    code = readFileFromDirSync(path, embedDir, 'utf-8')
     return jsp.parse(code)
   return
 
 template = (node, expr, args, options) ->
   if expr[1] == TEMPLATE
     path = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
-    if existsSync(path)
-      path = fs.realpathSync(path)
-      data = fs.readFileSync(path, 'utf-8')
-      switch extname(path)
-        when '.mu', '.mustache'
-          hogan = require 'hogan.js'
-          template = hogan.compile(data, asString: yes)
-          return @fun2ast(template)
-        else
-          return [ 'string', data ]
-    else
-      console.log "Error: template #{path} not found!".red
+    tplDir = options.outdir ? dirname(options.infile)
+    console.log tplDir.yellow, path
+    data = readFileFromDirSync(path, tplDir, 'utf-8')
+    switch extname(path)
+      when '.mu', '.mustache'
+        hogan = require 'hogan.js'
+        template = hogan.compile(data, asString: yes)
+        return @fun2ast(template)
+      else
+        return [ 'string', data ]
   return
   
 requires = []
@@ -276,7 +275,7 @@ if argv.v
   console.log 'nlink v0.0.1'
   return
   
-console.log argv
+#console.log argv
 outdir = fs.realpathSync(argv.outdir) if argv.outdir
 
 linker = new Linker(compress: argv.compress, indent: argv.indent)
@@ -284,14 +283,14 @@ linker.on 'call::name', precompile
 linker.on 'call::name', define
 linker.on 'call::name', ifdef
 linker.on 'call::name', template
-linker.on 'call::name', mixin
+linker.on 'call::name', embed
 linker.on 'call::name', _require
 linker.on 'call::name', module
+linker.on 'call::name', macros
+linker.on 'call::name', runMacros
 linker.on 'var', removeCoffeeScriptHelpers
 linker.on 'call', replaceFunctions
 linker.on 'name', replaceDefines
-linker.on 'call::name', macros
-linker.on 'call::name', runMacros
 linker.on 'toplevel', toplevel
 
 walkSync()
