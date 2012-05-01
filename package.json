@@ -14,7 +14,7 @@
     "coffee-script": ">=1.2.0",
     "optimist": ">=0.3.1",
     "uglify-js": "~1.2.6",
-    "fs.walker": ">=0.0.4",
+    "fs.walker": ">=0.0.5",
     "colors": ">=0.6.0"
   },
   "devDependencies": {
