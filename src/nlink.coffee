@@ -227,11 +227,10 @@ toplevel = (node, statements, options) ->
   ret = _wrapNamespace(ret, moduleNames) unless options.bare
   return [ node[0], ret ]
 
-nlink = (targets, options) ->
+nlink = (targets, options = {}) ->
   return unless targets
+  outdir = fs.realpathSync(options.outdir) if options.outdir?
   
-  outdir = fs.realpathSync(options.outdir) if options.outdir
-
   linker = new Linker(compress: options.compress, indent: options.indent)
   linker.on 'call::name', precompile
   linker.on 'call::name', define

@@ -6,9 +6,7 @@
   "bin": {
     "nlink": "./bin/nlink"
   },
-  "main": {
-    "nlink": "./lib/nlink"
-  },
+  "main": "./lib/nlink.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/vol4ok/nlink.git"
