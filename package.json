@@ -2,9 +2,12 @@
   "author": "vol4ok",
   "name": "nlink",
   "description": "JavaScript Linker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "bin": {
     "nlink": "./bin/nlink"
+  },
+  "main": {
+    "nlink": "./lib/nlink"
   },
   "repository": {
     "type": "git",
