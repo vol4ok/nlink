@@ -68,7 +68,8 @@ class Linker extends EventEmitter
     
   on: @::addListener
         
-  link: (code, options) ->
+  link: (code, options = {}) ->
+    options = options extends @options
     walk = @walk
     self = this
     ast = jsp.parse(code)
@@ -110,14 +111,15 @@ class Linker extends EventEmitter
           return e.result
         return this
     , -> return walk(ast))
-    code = pro.gen_code(ast, {beautify: yes, indent_level: @options.indent})
+    code = pro.gen_code(ast, {beautify: yes, indent_level: options.indent})
     ast = jsp.parse(code)
-    if @options.compress
+    return ast if options.ast
+    if options.compress
       ast = pro.ast_mangle(ast)
       ast = pro.ast_squeeze(ast)
       code = pro.gen_code(ast)
     else
-      code = pro.gen_code(ast, {beautify: yes, indent_level: @options.indent})
+      code = pro.gen_code(ast, {beautify: yes, indent_level: options.indent})
     return code
 
 module.exports = Linker

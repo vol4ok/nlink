@@ -14,7 +14,8 @@ EMPTY_NODE = ['name','']
 
 PRECOMPILE = 'PRECOMPILE'
 EMBED = 'EMBED'
-TEMPLATE = 'PRECOMPILE_TEMPLATE'
+LINK_AND_EMBED = 'LINK_AND_EMBED'
+EMBED_DATA = 'EMBED_DATA'
 DEFINE = 'DEFINE'
 IFDEF = 'IFDEF'
 IFNDEF = 'IFNDEF'
@@ -22,14 +23,33 @@ MACROS = 'MACROS'
 REQUIRE = 'require'
 MODULE = 'module'
 
+requires = []
+freplace =
+  '__extends' : '$.inherit'
+  '__hasProp' : '$.hasProp'
+  '__slice'   : '$.slice'
+  '__bind'    : '$.bind'
+  '__indexOf' : '$.indexOf'
+
+INIT_CONTEXT = 
+  moduleNames: {}
+  defines: {}
+  macros: {}
+
+      
 SCRIPT_FILES  = ['njs', 'js', 'coffee']
 
-SANDBOX_ENV =
-  fs: fs
-  path: path
-  __dirname: __dirname
-  __filename: __filename
-  
+globalScope = undefined
+makeEnv = (path) ->
+  __fscope = globalScope extends indexIncludes([dirname(path)])
+  return {
+    __filename: path
+    __dirname: dirname(path)
+    require: require
+    fs: fs
+    path: path
+    resolvePath: (p) -> return __fscope[p].path
+  }
 
 isArray = Array.isArray
   
@@ -86,54 +106,57 @@ readFileFromDirSync = (file, basedir, enc) ->
 precompile = (node, expr, args, options) ->
   if expr[1] is PRECOMPILE
     code = pro.gen_code(args[0])
-    obj = vm.runInNewContext("#{code}()", SANDBOX_ENV)
+    obj = vm.runInNewContext("#{code}()", makeEnv(options.infile))
     ret = @obj2ast(obj)
     return ret
   return
   
-  
-macros = {}
-  
 macros = (node, expr, args, options) ->
   if expr[1] is MACROS and args[0][0] is 'name'
     code = pro.gen_code(args[1])
-    macros[args[0][1]] = code
+    options.ctx.macros[args[0][1]] = code
     return EMPTY_NODE
   return
   
 runMacros = (node, expr, args, options) ->
-   if expr[0] == 'name' and macros[expr[1]]?
-     a = args.map(@walk)
-     str = vm.runInNewContext("(#{macros[expr[1]]})(#{a.map(pro.gen_code).join(',')})", SANDBOX_ENV)
-     return jsp.parse(str)
-   return
+  macros = options.ctx.macros
+  if expr[0] == 'name' and macros[expr[1]]?
+    a = args.map(@walk)
+    str = vm.runInNewContext("(#{macros[expr[1]]})(#{a.map(pro.gen_code).join(',')})", makeEnv(options.infile))
+    return jsp.parse(str)
+  return
+   
+linkAndEmbed = (node, expr, args, options) ->
+  if expr[1] == LINK_AND_EMBED
+    path = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
+    path = options.fscope[normalize(path)].path
+    code = fs.readFileSync(path,'utf-8')
+    if extname(path) is '.coffee'
+      code = coffee.compile(code, bare: yes)
+    newopt = {ast: yes} 
+    newopt = newopt extends options
+    newopt.bare = yes
+    newopt.ctx = INIT_CONTEXT
+    return @link(code, newopt)
+  return
   
 embed = (node, expr, args, options) ->
   if expr[1] == EMBED
-    path = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
+    path = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
     code = fs.readFileSync(options.fscope[normalize(path)].path,'utf-8')
     return jsp.parse(code)
   return
 
-template = (node, expr, args, options) ->
-  if expr[1] == TEMPLATE
-    path = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
+embedData = (node, expr, args, options) ->
+  if expr[1] == EMBED_DATA
+    path = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
     data = fs.readFileSync(options.fscope[normalize(path)].path,'utf-8')
-    switch extname(path)
-      when '.mu', '.mustache'
-        hogan = require 'hogan.js'
-        template = hogan.compile(data, asString: yes)
-        return @fun2ast(template)
-      else
-        return [ 'string', data ]
+    return [ 'string', data ]
   return
-
-  
-requires = []
 
 _require = (node, expr, args, options) ->
   if expr[1] == REQUIRE
-    path = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
+    path = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
     requires.push(path)
     # parent = @parent()
     # seg = path.split('/')
@@ -143,23 +166,6 @@ _require = (node, expr, args, options) ->
     #   ret = ['dot', ret, s]
     # return ret
   return
-
-
-moduleNames = []
-
-_module = (node, expr, args, options) ->
-  if expr[1] == MODULE
-    name = vm.runInNewContext(pro.gen_code(args[0]), SANDBOX_ENV)
-    moduleNames.push(name)
-    return EMPTY_NODE
-  return
-
-freplace = 
-  '__extends' : '$.inherit'
-  '__hasProp' : '$.hasProp'
-  '__slice'   : '$.slice'
-  '__bind'    : '$.bind'
-  '__indexOf' : '$.indexOf'
 
 replaceFunctions = (node, expr, args, options) ->
   expr[1] = freplace[expr[1]] if expr[0] == 'name' and freplace[expr[1]]?
@@ -177,29 +183,28 @@ removeCoffeeScriptHelpers = (node, defs, options) ->
           a = [ def[0] ]
           a[1] = walk(def[1]) if def.length > 1
           return a ]
-          
-defines = {}
 
 define = (node, expr, args, options) ->
   if expr[1] is DEFINE and args[0][0] is 'name'
-    defines[args[0][1]] = @walk(args[1]) ? ['name','']
+    options.ctx.defines[args[0][1]] = @walk(args[1]) ? ['name','']
     return EMPTY_NODE
     
 ifdef = (node, expr, args, options) ->
   if (expr[1] is IFDEF) and args[0][0] is 'name'
-    if defines[args[0][1]]
+    if options.ctx.defines[args[0][1]]
       stats = @walk(args[1])[3]
       if stats[stats.length-1][0] is 'return'
         stats[stats.length-1][0] = 'stat'
       return ['toplevel', stats]
     return EMPTY_NODE
     
-replaceDefines = (node, name) ->
+replaceDefines = (node, name, options) ->
+  defines = options.ctx.defines
   return defines[name] if defines[name]?
   
 _wrapNamespace = (ast, names) ->
   namesAst = []
-  for name in names
+  for name of names
     namesAst.push [ 'string', name ]
   return [ [ 'stat',
            [ 'call',
@@ -222,10 +227,18 @@ _wrapRequireJs = (ast, modules) ->
                  [], ast ] ] ] ] ]
   
 toplevel = (node, statements, options) ->
-  moduleNames = [removeExt(options.path)]
+  path = './'+removeExt(options.path)
+  options.ctx.moduleNames[path] = path
   ret = statements.map(@walk)
-  ret = _wrapNamespace(ret, moduleNames) unless options.bare
+  ret = _wrapNamespace(ret, options.ctx.moduleNames) unless options.bare
   return [ node[0], ret ]
+
+_module = (node, expr, args, options) ->
+  if expr[1] == MODULE
+    name = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
+    options.ctx.moduleNames[name] = name
+    return EMPTY_NODE
+  return
 
 nlink = (targets, options = {}) ->
   return unless targets
@@ -235,8 +248,9 @@ nlink = (targets, options = {}) ->
   linker.on 'call::name', precompile
   linker.on 'call::name', define
   linker.on 'call::name', ifdef
-  linker.on 'call::name', template
+  linker.on 'call::name', embedData
   linker.on 'call::name', embed
+  linker.on 'call::name', linkAndEmbed
   linker.on 'call::name', _require
   linker.on 'call::name', _module
   linker.on 'call::name', macros
@@ -253,7 +267,7 @@ nlink = (targets, options = {}) ->
     else includes.push(options.include)
   globalScope = indexIncludes(includes)
 
-  baseDir = options.basedir ? '.'
+  baseDir = options.basedir ? null
 
   count = 0
 
@@ -261,12 +275,9 @@ nlink = (targets, options = {}) ->
     .set(relative: baseDir)
     .on 'file', (path, ctx) -> 
       infile = path
-      code = undefined
+      code = fs.readFileSync(infile, 'utf-8')
       if ctx.extname() is '.coffee'
-        code = fs.readFileSync(infile, 'utf-8')
         code = coffee.compile(code, bare: yes)
-      if ctx.extname() is '.js'
-        code = fs.readFileSync(infile, 'utf-8')
       return unless code
       outfile = if outdir
         join(outdir, ctx.subpath(), ctx.basename(no)+'.js')
@@ -284,6 +295,7 @@ nlink = (targets, options = {}) ->
         outdir: outdir
         bare: options.bare
         fscope: fscope
+        ctx: INIT_CONTEXT
       console.log "link #{ctx.relpath()} -> #{relative(baseDir, outfile)}".green
       fs.writeFileSync(outfile, code, 'utf-8')
       count++

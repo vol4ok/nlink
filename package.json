@@ -21,9 +21,7 @@
   "devDependencies": {
     
   },
-  "optionalDependencies": {
-    "hogan.js": ">=2.0.0"
-  },
+  "optionalDependencies": {},
   "engines": {
     "node": "*"
   }
