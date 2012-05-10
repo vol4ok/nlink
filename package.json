@@ -2,7 +2,7 @@
   "author": "vol4ok",
   "name": "nlink",
   "description": "JavaScript Linker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "bin": {
     "nlink": "./bin/nlink"
   },
