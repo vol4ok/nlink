@@ -30,12 +30,6 @@ freplace =
   '__slice'   : '$.slice'
   '__bind'    : '$.bind'
   '__indexOf' : '$.indexOf'
-
-INIT_CONTEXT = 
-  moduleNames: {}
-  defines: {}
-  macros: {}
-
       
 SCRIPT_FILES  = ['njs', 'js', 'coffee']
 
@@ -125,7 +119,7 @@ runMacros = (node, expr, args, options) ->
     str = vm.runInNewContext("(#{macros[expr[1]]})(#{a.map(pro.gen_code).join(',')})", makeEnv(options.infile))
     return jsp.parse(str)
   return
-   
+
 linkAndEmbed = (node, expr, args, options) ->
   if expr[1] == LINK_AND_EMBED
     path = vm.runInNewContext(pro.gen_code(args[0]), makeEnv(options.infile))
@@ -136,7 +130,10 @@ linkAndEmbed = (node, expr, args, options) ->
     newopt = {ast: yes} 
     newopt = newopt extends options
     newopt.bare = yes
-    newopt.ctx = INIT_CONTEXT
+    newopt.ctx = 
+      moduleNames: {}
+      defines: {}
+      macros: {}
     return @link(code, newopt)
   return
   
@@ -295,7 +292,10 @@ nlink = (targets, options = {}) ->
         outdir: outdir
         bare: options.bare
         fscope: fscope
-        ctx: INIT_CONTEXT
+        ctx: 
+          moduleNames: {}
+          defines: {}
+          macros: {}
       console.log "link #{ctx.relpath()} -> #{relative(baseDir, outfile)}".green
       fs.writeFileSync(outfile, code, 'utf-8')
       count++
