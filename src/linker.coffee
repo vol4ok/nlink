@@ -48,8 +48,8 @@ class Linker extends EventEmitter
     
   constructor: (options) ->
     @options = 
-    indent   : options.indent ? @defaults.indent
-    compress : options.compress ? @defaults.compress
+      indent   : options.indent ? @defaults.indent
+      compress : options.compress ? @defaults.compress
     jsp.set_logger (msg) -> console.log "Parser: #{msg}".yellow
     pro.set_logger (msg) -> console.log "Process: #{msg}".yellow
     @walker = pro.ast_walker()
