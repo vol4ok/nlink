@@ -111,7 +111,7 @@ precompile = (node, expr, args, options) ->
     return ret
   return
   
-macros = (node, expr, args, options) ->
+_macros = (node, expr, args, options) ->
   if expr[1] is MACROS and args[0][0] is 'name'
     code = pro.gen_code(args[1])
     options.ctx.macros[args[0][1]] = code
@@ -253,7 +253,7 @@ nlink = (targets, options = {}) ->
   linker.on 'call::name', linkAndEmbed
   linker.on 'call::name', _require
   linker.on 'call::name', _module
-  linker.on 'call::name', macros
+  linker.on 'call::name', _macros
   linker.on 'call::name', runMacros
   linker.on 'var', removeCoffeeScriptHelpers
   linker.on 'call', replaceFunctions
@@ -302,7 +302,7 @@ nlink = (targets, options = {}) ->
     .on 'dir', (path, ctx) ->
       throw 'continue' if path is outdir
     .walk(targets)
-
+  linker.removeAllListeners()
   console.log "#{count} files successfully linker".cyan
 
 nlink.VERSION = "0.0.2"
